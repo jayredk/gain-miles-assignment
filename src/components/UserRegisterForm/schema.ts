@@ -22,23 +22,42 @@ export const userSchema = z.object({
     },
     { message: "Date cannot be later than today" }
   ),
-  email: z.string().email("Invalid email format").optional(),
-  phone: z.string().optional()
-    .refine(
-      (phone) => {
-        if (!phone) return true;
-        return /^\+852\d{8}$/.test(phone);
-      },
-      { message: "Phone number must start with +852 followed by 8 digits" }
-    ),
+  email: z.union([
+    z.string().email("Invalid email format"),
+    z.string().length(0)
+  ]).optional(),
+  phone: z.union([
+    z.string().regex(/^\+852\d{8}$/, "Phone number must start with +852 followed by 8 digits"),
+    z.string().length(0)
+  ]).optional(),
   password: z.string().min(1, "Password is required"),
   confirmPassword: z.string().min(1, "Confirm password is required"),
-}).refine((data) => data.password === data.confirmPassword, {
+})
+.refine(
+  (data) => {
+    const hasEmail = data.email && data.email.length > 0;
+    const hasPhone = data.phone && data.phone.length > 0;
+    return hasEmail || hasPhone;
+  },
+  {
+    message: "Either email or phone number is required",
+    path: ["email"]
+  }
+)
+.refine(
+  (data) => {
+    const hasEmail = data.email && data.email.length > 0;
+    const hasPhone = data.phone && data.phone.length > 0;
+    return hasEmail || hasPhone;
+  },
+  {
+    message: "Either email or phone number is required",
+    path: ["phone"]
+  }
+)
+.refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
-}).refine((data) => data.email || data.phone, {
-  message: "Either email or phone number is required",
-  path: ["email"],
-});
+})
 
 export type UserFormData = z.infer<typeof userSchema>;
